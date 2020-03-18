@@ -1,0 +1,22 @@
+<launch>
+  <node name="nodelet"
+	pkg="nodelet"
+	type="nodelet"
+	args="standalone velodyne_pointcloud/CloudNodelet _calibration:=/opt/ros/kinetic/share/velodyne_pointcloud/params/VLP16db.yaml"
+  />
+
+<node pkg="rviz" type="rviz" name="rviz" args="" />
+
+  <node name="tf"
+        pkg="tf"
+        type="static_transform_publisher"
+        args="0.0 0.0 0.0 0.0 0.0 0.0 1.0 /velodyne /ICP 100"
+  />
+
+  <node name="planarSLAM" 
+        pkg="planarSLAM" 
+        type="planarSLAM"  
+        output="screen">
+  </node>
+
+</launch>
