@@ -79,8 +79,8 @@ public:
 	std::vector<float> errorvec;
 
     //For ICP
-    int iterations = 100;
-    float limit = 1000;
+    int iterations = 300;
+    float limit = 1;
 	//float limit = 300.00;
 	int rotationlock = 0;
     bool fCloud = true;
@@ -317,7 +317,8 @@ public:
     //For calculating error of adjusted cloud
     float ErrorCalc(std::vector<pcl::PointXYZ> Correspondence, pcl::PointCloud<pcl::PointXYZ> &nextCloud) {
         float error;		
-        float e;
+        //float e;
+		Eigen::Vector3f e;
 		std::string filepath;
 		std::ostringstream numstr;
 		numstr << this->valueint;
@@ -337,28 +338,42 @@ public:
 			Eigen::Vector3f corrPointB;
             Eigen::Vector3f currentPoint;
             pcl::PointXYZ currP;
+            //corrPointA(0) = Correspondence[i].x- this->SecondCentroid(0);;
+            //corrPointA(1) = Correspondence[i].y- this->SecondCentroid(1);;
+            //corrPointA(2) = Correspondence[i].z- this->SecondCentroid(2);;
+            //corrPointB(0) = Correspondence[i+1].x- this->FirstCentroid(0);
+            //corrPointB(1) = Correspondence[i+1].y- this->FirstCentroid(1);
+            //corrPointB(2) = Correspondence[i+1].z- this->FirstCentroid(2);
+           
+
+            //currentPoint = this->RotationMatrix*corrPointB+this->TranslationVec;
+            //currP.x = currentPoint(0);
+            //currP.y = currentPoint(1);
+            //currP.z = currentPoint(2);
+            //e = (corrPointA - currentPoint);
+            //error = error + e.transpose()*e;
+            //nextCloud.push_back(currP);
+            corrPointB(0) = Correspondence[i+1].x;
+            corrPointB(1) = Correspondence[i+1].y;
+            corrPointB(2) = Correspondence[i+1].z;
             corrPointA(0) = Correspondence[i].x;
             corrPointA(1) = Correspondence[i].y;
             corrPointA(2) = Correspondence[i].z;
-            corrPointB(0) = Correspondence[i+1].x- this->SecondCentroid(0);
-            corrPointB(1) = Correspondence[i+1].y- this->SecondCentroid(1);
-            corrPointB(2) = Correspondence[i+1].z- this->SecondCentroid(2);
-           
 
-            currentPoint = this->RotationMatrix*corrPointB+this->TranslationVec;
+            currentPoint = this->RotationMatrix*corrPointA-this->TranslationVec;
             currP.x = currentPoint(0);
             currP.y = currentPoint(1);
             currP.z = currentPoint(2);
-            //e = (corrPointA - currentPoint);
-            //error = error + e.transpose()*e;
-            nextCloud.push_back(currP);
-                       
+            e = (corrPointA - currentPoint);
+            error = error + e.transpose()*e;
+            
+            nextCloud.push_back(currP);           
             float transposedA;
             transposedA = abs(corrPointA.transpose()*corrPointA);
             float transposedCurr;
             transposedCurr = abs(currentPoint.transpose()*currentPoint);
-            e = (transposedA + transposedCurr);
-			error = e + error;
+            //e = (transposedA + transposedCurr);
+			//error = e + error;
             
             numx1 <<Correspondence[i].x;
             numy1 <<Correspondence[i].y;
@@ -373,8 +388,8 @@ public:
             write << pointstr;
             }
         write.close();
-        error = error - 2*(firstpos + secondpos + thirdpos);
-        //error = error/Correspondence.size();
+        //error = error - 2*(firstpos + secondpos + thirdpos);
+        error = error/Correspondence.size();
         return error;
     }
 
@@ -495,9 +510,9 @@ public:
 
             //calculating error
             error = ErrorCalc(Correspondence,nextCloud);
-            //std::cout << error << std::endl;
+            std::cout << error << std::endl;
             //this->errorvec.push_back(error); //used for evaluation
-            if(error < this->limit && error > -1000) {
+            if(error < this->limit && error > 0) {
 				//for(int i = 0; i < nextCloud.points.size(); i++){
 				//std::cout << nextCloud.points[i] << std::endl;	
 				//}
@@ -512,7 +527,7 @@ public:
 				//pcl::toROSMsg(nextCloud,object_msg );
 				//object_msg.header.frame_id = "ICP";
 				//this->ICPpointcloud.publish(object_msg);
-				//mergeCloud(this->FirstCloud); //used for comparing clouds
+				mergeCloud(this->FirstCloud); //used for comparing clouds
                 this->errorvec.clear();
                 this->GlobalRotationMatrix =this->GlobalRotationMatrix + this->TotalRotationMatrix;
                 this->GlobalTranslationVec =this->GlobalTranslationVec + this->TotalTranslationVec;
@@ -530,12 +545,14 @@ public:
             
         }
 		if(success == false){
-			std::cout << "We failed to find allignment" << std::endl;
+			this->TotalRotationMatrix = Eigen::Matrix3f::Zero();
+            this->TotalTranslationVec = Eigen::Vector3f::Zero();
 			this->RotationMatrix = Eigen::Matrix3f::Zero();
             this->TranslationVec = Eigen::Vector3f::Zero();
 			this->rotationlock = 0;
 			this->FirstCloud = this->UnReducedSecondCloud;
-			
+            this->sCloud = false;
+
 		}
         
         //this->FirstCloud = this->SecondCloud;
